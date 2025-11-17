@@ -1,0 +1,277 @@
+import csv
+from datetime import datetime
+import os
+# Added for graphical summaries (Bonus Requirement 2)
+import matplotlib.pyplot as plt 
+
+# --- Configuration ---
+FILE_NAME = 'expenses.csv'
+CATEGORIES = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Shopping', 'Other']
+
+# --- Core Functions ---
+
+def load_expenses():
+    """Loads expenses from the CSV file and returns a list of dictionaries."""
+    expenses = []
+    if not os.path.exists(FILE_NAME):
+        print(f"--- INFO: The file '{FILE_NAME}' does not exist. Starting with an empty list of expenses. ---")
+        return expenses
+
+    try:
+        with open(FILE_NAME, mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                # Convert 'amount' from string back to float/int
+                try:
+                    row['amount'] = float(row['amount'])
+                except ValueError:
+                    # Handle corrupted data gracefully
+                    print(f"Warning: Skipping corrupted expense record with non-numeric amount: {row}")
+                    continue
+                expenses.append(row)
+        print(f"--- INFO: Successfully loaded {len(expenses)} expenses. ---")
+    except Exception as e:
+        print(f"ERROR: Could not load data from {FILE_NAME}. {e}")
+    return expenses
+
+def save_expenses(expenses):
+    """Saves the current list of expense dictionaries to the CSV file."""
+    if not expenses:
+        print("--- INFO: No expenses to save. ---")
+        if not os.path.exists(FILE_NAME) and expenses == []:
+             print("--- INFO: Creating new CSV file with headers. ---")
+
+    # Define fieldnames based on the keys in the expense dictionary
+    fieldnames = ['date', 'amount', 'category']
+    try:
+        with open(FILE_NAME, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            
+            # Write the header row only once
+            writer.writeheader()
+            
+            # Write all expense rows
+            writer.writerows(expenses)
+        print(f"--- INFO: Successfully saved {len(expenses)} expenses to '{FILE_NAME}'. ---")
+    except Exception as e:
+        print(f"ERROR: Could not save data to {FILE_NAME}. {e}")
+
+# --- Requirement 1: Add Expense ---
+
+def add_expense(expenses):
+    """Prompts the user for expense details and adds it to the list."""
+    print("\n--- 💸 Add New Expense ---")
+    
+    # 1. Get Amount
+    while True:
+        try:
+            amount_str = input("Enter amount spent ($): ")
+            amount = float(amount_str)
+            if amount <= 0:
+                print("Amount must be a positive number.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input. Please enter a valid number for the amount.")
+
+    # 2. Get Category
+    print("\nAvailable Categories:")
+    for i, cat in enumerate(CATEGORIES):
+        print(f"  {i+1}. {cat}")
+    
+    while True:
+        cat_choice = input(f"Enter category number (1-{len(CATEGORIES)}): ")
+        try:
+            index = int(cat_choice) - 1
+            if 0 <= index < len(CATEGORIES):
+                category = CATEGORIES[index]
+                break
+            else:
+                print("Invalid category number.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            
+    # 3. Get Date (Automatic or User-provided)
+    date_choice = input("Use today's date (Y/n)? Press 'n' to enter a custom date: ").lower()
+    if date_choice == 'n':
+        while True:
+            date_str = input("Enter date (YYYY-MM-DD): ")
+            try:
+                # Validate the date format
+                datetime.strptime(date_str, '%Y-%m-%d')
+                date = date_str
+                break
+            except ValueError:
+                print("Invalid date format. Please use YYYY-MM-DD.")
+    else:
+        date = datetime.now().strftime('%Y-%m-%d')
+        
+    # Create the new expense dictionary
+    new_expense = {
+        'date': date,
+        'amount': amount,
+        'category': category
+    }
+    
+    expenses.append(new_expense)
+    print(f"\n✅ Expense added: ${amount:.2f} on {date} for {category}.")
+    # IMPORTANT: Save the updated list immediately
+    save_expenses(expenses)
+
+# --- Requirement 2: View Summary ---
+
+def view_summaries(expenses):
+    """Calculates and displays various expense summaries."""
+    if not expenses:
+        print("\n--- 😔 No expenses recorded yet. Add some first! ---")
+        return
+
+    print("\n--- 📊 Expense Summaries ---")
+    
+    # 1. Total Overall Spending
+    total_spending = sum(exp['amount'] for exp in expenses)
+    print(f"\n**💵 Total Overall Spending: ${total_spending:.2f}**")
+    
+    # 2. Total Spending by Category
+    print("\n**Category Breakdown:**")
+    category_totals = {}
+    for exp in expenses:
+        cat = exp['category']
+        amount = exp['amount']
+        category_totals[cat] = category_totals.get(cat, 0) + amount
+        
+    # Print the breakdown (sorted by amount, descending)
+    sorted_categories = sorted(category_totals.items(), key=lambda item: item[1], reverse=True)
+    for category, total in sorted_categories:
+        percentage = (total / total_spending) * 100 if total_spending else 0
+        print(f"  - {category:<15}: ${total:7.2f} ({percentage:5.1f}%)")
+
+    # 3. Spending Over Time (Simple Daily Summary)
+    print("\n**Daily Summary (Top 5 Spending Days):**")
+    date_totals = {}
+    for exp in expenses:
+        date = exp['date']
+        amount = exp['amount']
+        date_totals[date] = date_totals.get(date, 0) + amount
+        
+    # Sort and display top days
+    sorted_dates = sorted(date_totals.items(), key=lambda item: item[1], reverse=True)[:5]
+    for date, total in sorted_dates:
+        print(f"  - {date}: ${total:.2f}")
+
+# ----------------------------------------------------
+# --- BONUS FEATURE 1: Delete Expense ---
+# ----------------------------------------------------
+
+def delete_expense(expenses):
+    """Allows the user to view all expenses and delete a selected record."""
+    if not expenses:
+        print("\n--- 😔 No expenses recorded to delete. ---")
+        return
+
+    print("\n--- 🗑️ Manage/Delete Expense ---")
+    print("No. | Date       | Amount | Category")
+    print("---------------------------------")
+    
+    # List all expenses with an index number
+    for i, exp in enumerate(expenses):
+        # Using :<8.2f for formatting the amount
+        print(f"{i+1:3} | {exp['date']} | ${exp['amount']:<8.2f} | {exp['category']}") 
+    print("---------------------------------")
+
+    while True:
+        try:
+            # Get the index number from the user
+            choice_str = input("\nEnter the number of the expense to DELETE (or '0' to cancel): ")
+            if choice_str == '0':
+                print("Deletion cancelled.")
+                return
+
+            index_to_delete = int(choice_str) - 1
+            
+            # Validate the index
+            if 0 <= index_to_delete < len(expenses):
+                # Remove the expense from the list
+                deleted_expense = expenses.pop(index_to_delete)
+                
+                # Save the updated list
+                save_expenses(expenses)
+                
+                print(f"\n✅ Deleted Expense #{index_to_delete + 1}: ${deleted_expense['amount']:.2f} for {deleted_expense['category']}.")
+                break
+            else:
+                print(f"Invalid number. Please enter a number between 1 and {len(expenses)}.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+
+# ----------------------------------------------------
+# --- BONUS FEATURE 2: Graphical Summary ---
+# ----------------------------------------------------
+
+def view_charts(expenses):
+    """Calculates category totals and displays the distribution as a pie chart."""
+    if not expenses:
+        print("\n--- 😔 No expenses recorded yet. Cannot generate chart. ---")
+        return
+
+    # Calculate Total Spending by Category (Copied from view_summaries)
+    category_totals = {}
+    for exp in expenses:
+        cat = exp['category']
+        amount = exp['amount']
+        category_totals[cat] = category_totals.get(cat, 0) + amount
+    
+    # Check if there's any spending data to chart
+    if not category_totals:
+        print("\n--- 😔 No non-zero spending to chart. ---")
+        return
+
+    categories = category_totals.keys()
+    amounts = category_totals.values()
+    
+    # Create the Pie Chart
+    plt.figure(figsize=(10, 7))
+    plt.pie(amounts, labels=categories, autopct='%1.1f%%', startangle=90)
+    plt.title('💰 Spending Distribution by Category')
+    plt.show() # This displays the chart
+
+
+# --- Main Loop (Updated) ---
+
+def main():
+    """The main function to run the expense tracker program."""
+    
+    # Data Persistence - Load data at startup
+    expenses = load_expenses()
+    
+    while True:
+        print("\n" + "="*40)
+        print("    💰 Personal Expense Tracker")
+        print("="*40)
+        print("1. Add New Expense")
+        print("2. View Spending Summaries")
+        print("3. Manage/Delete Expense")          # New
+        print("4. View Graphical Summary (Chart)") # New
+        print("5. Exit Program")                   # Number updated
+        print("="*40)
+        
+        choice = input("Enter your choice (1-5): ")
+        
+        if choice == '1':
+            add_expense(expenses)
+        elif choice == '2':
+            view_summaries(expenses)
+        elif choice == '3':
+            delete_expense(expenses)
+        elif choice == '4':
+            view_charts(expenses)
+        elif choice == '5':
+            print("\n👋 Thank you for using the Expense Tracker. Goodbye!")
+            break
+        else:
+            print("\n❌ Invalid choice. Please enter a number between 1 and 5.")
+
+# Run the program
+if __name__ == "__main__":
+    main()

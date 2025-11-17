@@ -1,0 +1,88 @@
+{
+    "Food": [
+        {"date": "2025-11-17", "amount": 15.50},
+        {"date": "2025-11-16", "amount": 10.00}
+    ],
+    "Transport": [
+        {"date": "2025-11-17", "amount": 5.00}
+    ]
+}
+import json
+from datetime import datetime
+import os
+# (You would also need the matplotlib import if using charts)
+
+# --- Configuration ---
+FILE_NAME_DICT = 'expenses_dict.json'
+CATEGORIES = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Shopping', 'Other']
+
+# --- Core Functions (Dictionary Structure) ---
+
+def load_expenses_dict():
+    """Loads and returns the nested expense dictionary from JSON."""
+    if not os.path.exists(FILE_NAME_DICT):
+        # Initialize with all categories as empty lists
+        return {cat: [] for cat in CATEGORIES}
+    try:
+        with open(FILE_NAME_DICT, 'r') as file:
+            data = json.load(file)
+            # Ensure any missing categories are added for safety
+            for cat in CATEGORIES:
+                 if cat not in data:
+                    data[cat] = []
+            return data
+    except Exception:
+        return {cat: [] for cat in CATEGORIES}
+
+def save_expenses_dict(expenses_dict):
+    """Saves the nested expense dictionary to JSON."""
+    try:
+        with open(FILE_NAME_DICT, 'w') as file:
+            json.dump(expenses_dict, file, indent=4)
+        # We don't count total expenses easily, so a simpler message
+        print(f"--- INFO: Successfully saved data to '{FILE_NAME_DICT}'. ---")
+    except Exception as e:
+        print(f"ERROR saving data: {e}")
+
+
+# --- Add Expense (Adjusted for Dictionary Structure) ---
+
+def add_expense_dict(expenses_dict):
+    """Prompts the user for expense details and adds it to the category dictionary."""
+    # (Input collection for amount, category choice, and date remains the same)
+    
+    # ... after inputs, assume we have: amount, category, date
+    
+    new_expense = {
+        'date': date,
+        'amount': amount
+    }
+    
+    # NEW LOGIC: Append directly to the category list
+    if category in expenses_dict:
+        expenses_dict[category].append(new_expense)
+    else:
+        # Should not happen if load_expenses_dict initializes correctly
+        expenses_dict[category] = [new_expense] 
+    
+    print(f"\n✅ Expense added: ${amount:.2f} on {date} for {category}.")
+    save_expenses_dict(expenses_dict)
+
+# --- View Summary (Adjusted for Dictionary Structure) ---
+
+def view_summaries_dict(expenses_dict):
+    """Calculates and displays various expense summaries using the dictionary structure."""
+    total_spending = 0
+    
+    print("\n**Category Breakdown:**")
+    for category, expense_list in expenses_dict.items():
+        # Calculate total spending per category directly
+        cat_total = sum(exp['amount'] for exp in expense_list)
+        print(f"  - {category:<15}: ${cat_total:7.2f}")
+        total_spending += cat_total
+        
+    print(f"\n**💵 Total Overall Spending: ${total_spending:.2f}**")
+    
+    # (Daily summary logic would require iterating through all category lists to get all dates)
+
+# (The main function would be updated to call load_expenses_dict and pass the dictionary instead of a list).
